@@ -6,6 +6,8 @@ const messageSchema = new mongoose.Schema(
     sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     text: { type: String, trim: true, default: '' },
     attachmentUrl: { type: String, trim: true },
+    attachmentName: { type: String, trim: true },
+    attachmentType: { type: String, trim: true },
     readBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
   },
   { timestamps: true }

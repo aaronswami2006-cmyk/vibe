@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Bell, LogOut, MessageCircle, Plus, Search, Send, Shield, Sparkles, Users } from 'lucide-react';
+import { Bell, File, LogOut, MessageCircle, Paperclip, Plus, Search, Send, Shield, Smile, Sparkles, Users, X } from 'lucide-react';
 import { api } from './api.js';
 import { createSocket } from './socket.js';
 
 const emptyAuth = { name: '', email: '', password: '' };
+const emojiOptions = ['😀', '😂', '😍', '🥳', '😎', '😭', '🔥', '💜', '👍', '🙏'];
+const maxAttachmentSize = 6 * 1024 * 1024;
 
 function getStoredSession() {
   const token = localStorage.getItem('chat_token');
@@ -30,6 +32,7 @@ export default function App() {
   const [messages, setMessages] = useState([]);
   const [messageText, setMessageText] = useState('');
   const [attachmentUrl, setAttachmentUrl] = useState('');
+  const [attachment, setAttachment] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [adminStats, setAdminStats] = useState(null);
   const [adminUsers, setAdminUsers] = useState([]);
@@ -38,6 +41,7 @@ export default function App() {
   const socketRef = useRef(null);
   const activeChatRef = useRef(null);
   const bottomRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const currentUserId = session?.user?.id || session?.user?._id;
 
@@ -155,18 +159,72 @@ export default function App() {
 
   async function sendMessage(event) {
     event.preventDefault();
-    if (!activeChat || (!messageText.trim() && !attachmentUrl.trim())) return;
+    const finalAttachmentUrl = attachment?.url || attachmentUrl.trim();
+    if (!activeChat || (!messageText.trim() && !finalAttachmentUrl)) return;
 
     socketRef.current?.emit('message:send', {
       chatId: activeChat._id,
       text: messageText,
-      attachmentUrl
+      attachmentUrl: finalAttachmentUrl,
+      attachmentName: attachment?.name,
+      attachmentType: attachment?.type
     }, (result) => {
       if (!result?.ok) setError(result?.message || 'Message failed');
     });
 
     setMessageText('');
     setAttachmentUrl('');
+    setAttachment(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
+  function handleFileChange(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > maxAttachmentSize) {
+      setError('Please choose a file smaller than 6 MB');
+      event.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setError('');
+      setAttachment({
+        name: file.name,
+        type: file.type || 'application/octet-stream',
+        url: reader.result
+      });
+      setAttachmentUrl('');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function renderAttachment(message) {
+    if (!message.attachmentUrl) return null;
+
+    const type = message.attachmentType || '';
+    const name = message.attachmentName || 'Open attachment';
+
+    if (type.startsWith('image/')) {
+      return <img className="message-media" src={message.attachmentUrl} alt={name} />;
+    }
+
+    if (type.startsWith('video/')) {
+      return <video className="message-media" src={message.attachmentUrl} controls />;
+    }
+
+    if (type.startsWith('audio/')) {
+      return <audio className="message-audio" src={message.attachmentUrl} controls />;
+    }
+
+    return (
+      <a className="file-link" href={message.attachmentUrl} download={message.attachmentName} target="_blank" rel="noreferrer">
+        <File size={16} />
+        {name}
+      </a>
+    );
   }
 
   async function toggleBlock(user) {
@@ -312,7 +370,7 @@ export default function App() {
                   <article className={mine ? 'bubble mine' : 'bubble'} key={message._id}>
                     <small>{message.sender?.name || 'User'}</small>
                     {message.text && <p>{message.text}</p>}
-                    {message.attachmentUrl && <a href={message.attachmentUrl} target="_blank" rel="noreferrer">Open attachment</a>}
+                    {renderAttachment(message)}
                   </article>
                 );
               })}
@@ -320,9 +378,34 @@ export default function App() {
             </div>
 
             <form className="composer" onSubmit={sendMessage}>
-              <input placeholder="Attachment URL" value={attachmentUrl} onChange={(event) => setAttachmentUrl(event.target.value)} />
-              <input placeholder="Type a message" value={messageText} onChange={(event) => setMessageText(event.target.value)} />
-              <button title="Send message" className="send-button" type="submit"><Send size={19} /></button>
+              <div className="emoji-tray" aria-label="Emoji shortcuts">
+                <Smile size={17} />
+                {emojiOptions.map((emoji) => (
+                  <button type="button" key={emoji} onClick={() => setMessageText((current) => `${current}${emoji}`)}>
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+
+              {attachment && (
+                <div className="attachment-preview">
+                  <span><Paperclip size={16} /> {attachment.name}</span>
+                  <button type="button" title="Remove attachment" onClick={() => setAttachment(null)}><X size={16} /></button>
+                </div>
+              )}
+
+              <div className="composer-row">
+                <button type="button" title="Attach file" className="tool-button" onClick={() => fileInputRef.current?.click()}>
+                  <Paperclip size={19} />
+                </button>
+                <input ref={fileInputRef} className="hidden-file" type="file" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt" onChange={handleFileChange} />
+                <input placeholder="Attachment URL" value={attachmentUrl} onChange={(event) => {
+                  setAttachmentUrl(event.target.value);
+                  setAttachment(null);
+                }} />
+                <input placeholder="Type a message or add emojis" value={messageText} onChange={(event) => setMessageText(event.target.value)} />
+                <button title="Send message" className="send-button" type="submit"><Send size={19} /></button>
+              </div>
             </form>
           </div>
         </div>

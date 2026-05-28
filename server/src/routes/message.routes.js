@@ -24,7 +24,7 @@ router.get('/:chatId', requireAuth, async (req, res, next) => {
 
 router.post('/', requireAuth, async (req, res, next) => {
   try {
-    const { chatId, text, attachmentUrl } = req.body;
+    const { chatId, text, attachmentUrl, attachmentName, attachmentType } = req.body;
     const chat = await Chat.findOne({ _id: chatId, members: req.user._id });
 
     if (!chat) {
@@ -40,6 +40,8 @@ router.post('/', requireAuth, async (req, res, next) => {
       sender: req.user._id,
       text,
       attachmentUrl,
+      attachmentName,
+      attachmentType,
       readBy: [req.user._id]
     });
 

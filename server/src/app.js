@@ -17,7 +17,7 @@ const allowedOrigins = (process.env.CLIENT_URLS || process.env.CLIENT_URL || 'ht
 
 app.use(helmet());
 app.use(cors({ origin: allowedOrigins, credentials: true }));
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '12mb' }));
 app.use(morgan('dev'));
 
 app.get('/api/health', (_req, res) => {

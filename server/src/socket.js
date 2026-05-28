@@ -52,7 +52,7 @@ export function configureSocket(httpServer) {
       if (chat) socket.join(chatId);
     });
 
-    socket.on('message:send', async ({ chatId, text, attachmentUrl }, callback) => {
+    socket.on('message:send', async ({ chatId, text, attachmentUrl, attachmentName, attachmentType }, callback) => {
       try {
         const chat = await Chat.findOne({ _id: chatId, members: userId });
         if (!chat) throw new Error('Chat not found');
@@ -63,6 +63,8 @@ export function configureSocket(httpServer) {
           sender: userId,
           text,
           attachmentUrl,
+          attachmentName,
+          attachmentType,
           readBy: [userId]
         });
 
