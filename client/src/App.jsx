@@ -39,6 +39,7 @@ export default function App() {
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  const [socketConnected, setSocketConnected] = useState(false);
   const socketRef = useRef(null);
   const activeChatRef = useRef(null);
   const bottomRef = useRef(null);
@@ -57,13 +58,22 @@ export default function App() {
     const socket = createSocket(session.token);
     socketRef.current = socket;
 
+    socket.on('connect', () => {
+      setSocketConnected(true);
+      setError('');
+    });
+
+    socket.on('disconnect', () => {
+      setSocketConnected(false);
+    });
+
+    socket.on('connect_error', () => {
+      setSocketConnected(false);
+      setError('Realtime connection is not available. Messages will use backup sending.');
+    });
+
     socket.on('message:new', (message) => {
-      setMessages((current) => {
-        if (message.chat !== activeChatRef.current?._id) return current;
-        if (current.some((item) => item._id === message._id)) return current;
-        return [...current, message];
-      });
-      setChats((current) => current.map((chat) => chat._id === message.chat ? { ...chat, lastMessage: message } : chat));
+      addMessageToView(message);
     });
 
     socket.on('notification:new', (notification) => {
@@ -163,21 +173,46 @@ export default function App() {
     const finalAttachmentUrl = attachment?.url || attachmentUrl.trim();
     if (!activeChat || (!messageText.trim() && !finalAttachmentUrl)) return;
 
-    socketRef.current?.emit('message:send', {
+    const payload = {
       chatId: activeChat._id,
       text: messageText,
       attachmentUrl: finalAttachmentUrl,
       attachmentName: attachment?.name,
       attachmentType: attachment?.type
-    }, (result) => {
-      if (!result?.ok) setError(result?.message || 'Message failed');
-    });
+    };
 
-    setMessageText('');
-    setAttachmentUrl('');
-    setAttachment(null);
-    setEmojiPickerOpen(false);
-    if (fileInputRef.current) fileInputRef.current.value = '';
+    try {
+      if (socketRef.current?.connected) {
+        const result = await new Promise((resolve) => {
+          socketRef.current.emit('message:send', payload, resolve);
+          window.setTimeout(() => resolve({ ok: false, message: 'Realtime send timed out' }), 7000);
+        });
+
+        if (!result?.ok) throw new Error(result?.message || 'Message failed');
+        if (result.message) addMessageToView(result.message);
+      } else {
+        const { data } = await api.post('/messages', payload);
+        addMessageToView(data);
+      }
+
+      setMessageText('');
+      setAttachmentUrl('');
+      setAttachment(null);
+      setEmojiPickerOpen(false);
+      setError('');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Message failed');
+    }
+  }
+
+  function addMessageToView(message) {
+    setMessages((current) => {
+      if (message.chat !== activeChatRef.current?._id) return current;
+      if (current.some((item) => item._id === message._id)) return current;
+      return [...current, message];
+    });
+    setChats((current) => current.map((chat) => chat._id === message.chat ? { ...chat, lastMessage: message } : chat));
   }
 
   function handleFileChange(event) {
@@ -350,6 +385,7 @@ export default function App() {
           <div className="top-actions">
             <Bell size={18} />
             <span>{notifications.length}</span>
+            <span className={socketConnected ? 'connection live' : 'connection'}>{socketConnected ? 'Live' : 'Backup'}</span>
           </div>
         </header>
 
@@ -380,6 +416,7 @@ export default function App() {
             </div>
 
             <form className="composer" onSubmit={sendMessage}>
+              {error && <p className="composer-error">{error}</p>}
               {attachment && (
                 <div className="attachment-preview">
                   <span><Paperclip size={16} /> {attachment.name}</span>

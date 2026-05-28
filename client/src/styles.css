@@ -457,6 +457,19 @@ small {
   font-weight: 900;
 }
 
+.connection {
+  padding: 4px 7px;
+  border-radius: 8px;
+  color: #8a3d00;
+  background: #fff0d2;
+  font-size: 11px;
+}
+
+.connection.live {
+  color: #07543f;
+  background: #d8fff1;
+}
+
 .chat-layout {
   min-height: 0;
   display: grid;
@@ -538,6 +551,13 @@ small {
   padding: 14px;
   border-top: 1px solid rgba(124, 58, 237, 0.12);
   background: rgba(255, 255, 255, 0.9);
+}
+
+.composer-error {
+  margin: 0;
+  color: #c1125b;
+  font-size: 13px;
+  font-weight: 850;
 }
 
 .attachment-preview,
