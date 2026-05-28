@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import EmojiPicker from 'emoji-picker-react';
-import { Bell, File, LogOut, MessageCircle, Paperclip, Plus, Search, Send, Shield, Smile, Sparkles, Users, X } from 'lucide-react';
+import { Bell, Check, File, LogOut, MessageCircle, Paperclip, Plus, Search, Send, Shield, Smile, Sparkles, Users, X } from 'lucide-react';
 import { api } from './api.js';
 import { createSocket } from './socket.js';
 
@@ -40,6 +40,10 @@ export default function App() {
   const [error, setError] = useState('');
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
+  const [groupPanelOpen, setGroupPanelOpen] = useState(false);
+  const [groupName, setGroupName] = useState('');
+  const [groupSearch, setGroupSearch] = useState('');
+  const [selectedGroupMembers, setSelectedGroupMembers] = useState([]);
   const socketRef = useRef(null);
   const activeChatRef = useRef(null);
   const bottomRef = useRef(null);
@@ -150,15 +154,30 @@ export default function App() {
     setChats((current) => current.some((chat) => chat._id === data._id) ? current : [data, ...current]);
   }
 
-  async function createGroup() {
-    const selectedUsers = users.filter((user) => user.selected).map((user) => user._id);
-    const name = window.prompt('Group name');
-    if (!name || selectedUsers.length === 0) return;
+  async function createGroup(event) {
+    event?.preventDefault();
+    const name = groupName.trim();
+    if (!name || selectedGroupMembers.length === 0) return;
 
-    const { data } = await api.post('/chats/group', { name, memberIds: selectedUsers });
-    setChats((current) => [data, ...current]);
-    setActiveChat(data);
-    await loadMessages(data);
+    try {
+      const { data } = await api.post('/chats/group', { name, memberIds: selectedGroupMembers });
+      setChats((current) => [data, ...current]);
+      setActiveChat(data);
+      setGroupPanelOpen(false);
+      setGroupName('');
+      setGroupSearch('');
+      setSelectedGroupMembers([]);
+      setError('');
+      await loadMessages(data);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not create group');
+    }
+  }
+
+  function toggleGroupMember(userId) {
+    setSelectedGroupMembers((current) => current.includes(userId)
+      ? current.filter((id) => id !== userId)
+      : [...current, userId]);
   }
 
   async function loadMessages(chat) {
@@ -274,6 +293,15 @@ export default function App() {
     return users.filter((user) => `${user.name} ${user.email}`.toLowerCase().includes(term));
   }, [users, query]);
 
+  const groupUsers = useMemo(() => {
+    const term = groupSearch.toLowerCase();
+    return users.filter((user) => `${user.name} ${user.email}`.toLowerCase().includes(term));
+  }, [users, groupSearch]);
+
+  const selectedGroupNames = users
+    .filter((user) => selectedGroupMembers.includes(user._id))
+    .map((user) => user.name);
+
   const chatTitle = activeChat
     ? activeChat.isGroup
       ? activeChat.name
@@ -355,8 +383,56 @@ export default function App() {
 
         <div className="sidebar-header">
           <span>People</span>
-          <button title="Create group" className="icon-button" onClick={createGroup}><Plus size={18} /></button>
+          <button title="Create group" className="icon-button" onClick={() => setGroupPanelOpen(true)}><Plus size={18} /></button>
         </div>
+
+        {groupPanelOpen && (
+          <form className="group-panel" onSubmit={createGroup}>
+            <div className="group-panel-head">
+              <div>
+                <p className="eyebrow">New group</p>
+                <strong>Create a Vibe circle</strong>
+              </div>
+              <button type="button" title="Close group creator" onClick={() => setGroupPanelOpen(false)}><X size={17} /></button>
+            </div>
+
+            <label>
+              Group name
+              <input value={groupName} onChange={(event) => setGroupName(event.target.value)} placeholder="Friends, project team..." />
+            </label>
+
+            <div className="group-search">
+              <Search size={16} />
+              <input value={groupSearch} onChange={(event) => setGroupSearch(event.target.value)} placeholder="Search members" />
+            </div>
+
+            <div className="selected-members">
+              {selectedGroupMembers.length === 0
+                ? <span>Select at least one member</span>
+                : selectedGroupNames.map((name) => <span key={name}>{name}</span>)}
+            </div>
+
+            <div className="group-member-list">
+              {groupUsers.map((user) => {
+                const selected = selectedGroupMembers.includes(user._id);
+                return (
+                  <button type="button" className={selected ? 'selected' : ''} key={user._id} onClick={() => toggleGroupMember(user._id)}>
+                    <span className={user.isOnline ? 'status online' : 'status'} />
+                    <span>
+                      <strong>{user.name}</strong>
+                      <small>{user.email}</small>
+                    </span>
+                    <span className="member-check">{selected && <Check size={15} />}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <button className="primary group-create" type="submit" disabled={!groupName.trim() || selectedGroupMembers.length === 0}>
+              Create group
+            </button>
+          </form>
+        )}
 
         <div className="user-list">
           {filteredUsers.map((user) => (
@@ -368,9 +444,6 @@ export default function App() {
                   <small>{user.isOnline ? 'Online' : 'Offline'}</small>
                 </span>
               </button>
-              <input type="checkbox" title="Select for group" onChange={(event) => {
-                setUsers((current) => current.map((item) => item._id === user._id ? { ...item, selected: event.target.checked } : item));
-              }} />
             </div>
           ))}
         </div>
