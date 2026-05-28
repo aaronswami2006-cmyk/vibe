@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+server/.env
+client/.env
+npm-debug.log*
+dev.log
+dev.err
+*.docx
