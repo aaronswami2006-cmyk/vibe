@@ -48,6 +48,7 @@ export default function App() {
   const activeChatRef = useRef(null);
   const bottomRef = useRef(null);
   const fileInputRef = useRef(null);
+  const groupNameRef = useRef(null);
 
   const currentUserId = session?.user?.id || session?.user?._id;
 
@@ -101,6 +102,12 @@ export default function App() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    if (groupPanelOpen) {
+      window.setTimeout(() => groupNameRef.current?.focus(), 0);
+    }
+  }, [groupPanelOpen]);
 
   async function refreshData() {
     const [usersRes, chatsRes] = await Promise.all([api.get('/users'), api.get('/chats')]);
@@ -398,7 +405,16 @@ export default function App() {
 
             <label>
               Group name
-              <input value={groupName} onChange={(event) => setGroupName(event.target.value)} placeholder="Friends, project team..." />
+              <input
+                ref={groupNameRef}
+                type="text"
+                name="groupName"
+                autoComplete="off"
+                value={groupName}
+                onChange={(event) => setGroupName(event.target.value)}
+                onKeyDown={(event) => event.stopPropagation()}
+                placeholder="Type group name"
+              />
             </label>
 
             <div className="group-search">
