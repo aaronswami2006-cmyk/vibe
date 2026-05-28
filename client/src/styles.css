@@ -540,33 +540,11 @@ small {
   background: rgba(255, 255, 255, 0.9);
 }
 
-.emoji-tray,
 .attachment-preview,
 .composer-row,
 .file-link {
   display: flex;
   align-items: center;
-}
-
-.emoji-tray {
-  gap: 7px;
-  color: #7c3aed;
-}
-
-.emoji-tray button {
-  width: 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
-  border: 0;
-  border-radius: 8px;
-  background: #f2eaff;
-  transition: transform 160ms ease, background 160ms ease;
-}
-
-.emoji-tray button:hover {
-  transform: translateY(-1px);
-  background: #ffe7f2;
 }
 
 .attachment-preview {
@@ -609,6 +587,28 @@ small {
 
 .composer-row {
   gap: 10px;
+}
+
+.emoji-picker-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.emoji-popover {
+  position: absolute;
+  left: 0;
+  bottom: 50px;
+  z-index: 20;
+  width: min(370px, calc(100vw - 42px));
+  overflow: hidden;
+  border: 1px solid rgba(124, 58, 237, 0.18);
+  border-radius: 8px;
+  box-shadow: 0 24px 60px rgba(9, 12, 35, 0.28);
+}
+
+.emoji-popover .epr-main {
+  border: 0;
+  font-family: inherit;
 }
 
 .composer-row input:nth-of-type(2) {
@@ -714,6 +714,14 @@ small {
 
   .composer-row {
     display: grid;
+  }
+
+  .emoji-popover {
+    position: fixed;
+    left: 16px;
+    right: 16px;
+    bottom: 96px;
+    width: auto;
   }
 
   .auth-panel {

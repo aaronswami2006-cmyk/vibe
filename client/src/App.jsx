@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import EmojiPicker from 'emoji-picker-react';
 import { Bell, File, LogOut, MessageCircle, Paperclip, Plus, Search, Send, Shield, Smile, Sparkles, Users, X } from 'lucide-react';
 import { api } from './api.js';
 import { createSocket } from './socket.js';
 
 const emptyAuth = { name: '', email: '', password: '' };
-const emojiOptions = ['😀', '😂', '😍', '🥳', '😎', '😭', '🔥', '💜', '👍', '🙏'];
 const maxAttachmentSize = 6 * 1024 * 1024;
 
 function getStoredSession() {
@@ -38,6 +38,7 @@ export default function App() {
   const [adminUsers, setAdminUsers] = useState([]);
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const socketRef = useRef(null);
   const activeChatRef = useRef(null);
   const bottomRef = useRef(null);
@@ -175,6 +176,7 @@ export default function App() {
     setMessageText('');
     setAttachmentUrl('');
     setAttachment(null);
+    setEmojiPickerOpen(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
@@ -378,15 +380,6 @@ export default function App() {
             </div>
 
             <form className="composer" onSubmit={sendMessage}>
-              <div className="emoji-tray" aria-label="Emoji shortcuts">
-                <Smile size={17} />
-                {emojiOptions.map((emoji) => (
-                  <button type="button" key={emoji} onClick={() => setMessageText((current) => `${current}${emoji}`)}>
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-
               {attachment && (
                 <div className="attachment-preview">
                   <span><Paperclip size={16} /> {attachment.name}</span>
@@ -395,6 +388,23 @@ export default function App() {
               )}
 
               <div className="composer-row">
+                <div className="emoji-picker-wrap">
+                  <button type="button" title="Open emoji picker" className="tool-button" onClick={() => setEmojiPickerOpen((open) => !open)}>
+                    <Smile size={19} />
+                  </button>
+                  {emojiPickerOpen && (
+                    <div className="emoji-popover">
+                      <EmojiPicker
+                        width="100%"
+                        height={390}
+                        lazyLoadEmojis
+                        searchPlaceholder="Search emoji"
+                        previewConfig={{ showPreview: false }}
+                        onEmojiClick={(emojiData) => setMessageText((current) => `${current}${emojiData.emoji}`)}
+                      />
+                    </div>
+                  )}
+                </div>
                 <button type="button" title="Attach file" className="tool-button" onClick={() => fileInputRef.current?.click()}>
                   <Paperclip size={19} />
                 </button>
