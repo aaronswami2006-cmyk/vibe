@@ -208,7 +208,10 @@ export default function App() {
     };
 
     try {
-      if (socketRef.current?.connected) {
+      if (finalAttachmentUrl) {
+        const { data } = await api.post('/messages', payload);
+        addMessageToView(data);
+      } else if (socketRef.current?.connected) {
         const result = await new Promise((resolve) => {
           socketRef.current.emit('message:send', payload, resolve);
           window.setTimeout(() => resolve({ ok: false, message: 'Realtime send timed out' }), 7000);

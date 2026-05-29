@@ -13,6 +13,7 @@ export function configureSocket(httpServer) {
     .filter(Boolean);
 
   const io = new Server(httpServer, {
+    maxHttpBufferSize: 12 * 1024 * 1024,
     cors: {
       origin: allowedOrigins,
       credentials: true
