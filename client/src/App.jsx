@@ -512,7 +512,10 @@ export default function App() {
               {attachment && (
                 <div className="attachment-preview">
                   <span><Paperclip size={16} /> {attachment.name}</span>
-                  <button type="button" title="Remove attachment" onClick={() => setAttachment(null)}><X size={16} /></button>
+                  <div className="attachment-actions">
+                    <button type="submit" title="Send attachment"><Send size={16} /></button>
+                    <button type="button" title="Remove attachment" onClick={() => setAttachment(null)}><X size={16} /></button>
+                  </div>
                 </div>
               )}
 

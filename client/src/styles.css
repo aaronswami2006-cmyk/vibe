@@ -707,12 +707,19 @@ small {
   white-space: nowrap;
 }
 
+.attachment-actions,
 .attachment-preview button,
 .tool-button {
   border: 0;
   border-radius: 8px;
   color: #40206f;
   background: #f2eaff;
+}
+
+.attachment-actions {
+  display: flex;
+  gap: 8px;
+  background: transparent;
 }
 
 .attachment-preview button {
