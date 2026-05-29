@@ -538,10 +538,6 @@ export default function App() {
                   <Paperclip size={19} />
                 </button>
                 <input ref={fileInputRef} className="hidden-file" type="file" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt" onChange={handleFileChange} />
-                <input placeholder="Attachment URL" value={attachmentUrl} onChange={(event) => {
-                  setAttachmentUrl(event.target.value);
-                  setAttachment(null);
-                }} />
                 <input placeholder="Type a message or add emojis" value={messageText} onChange={(event) => setMessageText(event.target.value)} />
                 <button title="Send message" className="send-button" type="submit"><Send size={19} /></button>
               </div>

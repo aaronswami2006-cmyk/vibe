@@ -724,6 +724,8 @@ small {
 }
 
 .composer-row {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
   gap: 10px;
 }
 
@@ -749,8 +751,8 @@ small {
   font-family: inherit;
 }
 
-.composer-row input:nth-of-type(2) {
-  flex: 1;
+.composer-row input {
+  min-width: 0;
 }
 
 .tool-button {
