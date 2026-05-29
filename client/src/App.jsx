@@ -44,6 +44,9 @@ export default function App() {
   const [groupName, setGroupName] = useState('');
   const [groupSearch, setGroupSearch] = useState('');
   const [selectedGroupMembers, setSelectedGroupMembers] = useState([]);
+  const [addMembersOpen, setAddMembersOpen] = useState(false);
+  const [addMemberSearch, setAddMemberSearch] = useState('');
+  const [membersToAdd, setMembersToAdd] = useState([]);
   const socketRef = useRef(null);
   const activeChatRef = useRef(null);
   const bottomRef = useRef(null);
@@ -187,8 +190,34 @@ export default function App() {
       : [...current, userId]);
   }
 
+  function toggleMemberToAdd(userId) {
+    setMembersToAdd((current) => current.includes(userId)
+      ? current.filter((id) => id !== userId)
+      : [...current, userId]);
+  }
+
+  async function addMembersToGroup(event) {
+    event.preventDefault();
+    if (!activeChat?.isGroup || membersToAdd.length === 0) return;
+
+    try {
+      const { data } = await api.patch(`/chats/${activeChat._id}/members`, { memberIds: membersToAdd });
+      setActiveChat(data);
+      setChats((current) => current.map((chat) => chat._id === data._id ? data : chat));
+      setAddMembersOpen(false);
+      setMembersToAdd([]);
+      setAddMemberSearch('');
+      setError('');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not add members');
+    }
+  }
+
   async function loadMessages(chat) {
     setActiveChat(chat);
+    setAddMembersOpen(false);
+    setMembersToAdd([]);
+    setAddMemberSearch('');
     socketRef.current?.emit('chat:join', chat._id);
     const { data } = await api.get(`/messages/${chat._id}`);
     setMessages(data);
@@ -311,6 +340,16 @@ export default function App() {
   const selectedGroupNames = users
     .filter((user) => selectedGroupMembers.includes(user._id))
     .map((user) => user.name);
+
+  const addableMembers = useMemo(() => {
+    if (!activeChat?.isGroup) return [];
+    const existingIds = new Set(activeChat.members?.map((member) => member._id) || []);
+    const term = addMemberSearch.toLowerCase();
+    return users.filter((user) => !existingIds.has(user._id) && `${user.name} ${user.email}`.toLowerCase().includes(term));
+  }, [activeChat, users, addMemberSearch]);
+
+  const activeGroupAdmin = activeChat?.isGroup
+    && activeChat.admins?.some((adminId) => (adminId._id || adminId).toString() === currentUserId);
 
   const chatTitle = activeChat
     ? activeChat.isGroup
@@ -473,13 +512,57 @@ export default function App() {
           <div>
             <p className="eyebrow">{activeChat?.isGroup ? 'Group vibe' : 'Conversation'}</p>
             <h2>{chatTitle}</h2>
+            {activeChat?.isGroup && <small>{activeChat.members?.length || 0} members</small>}
           </div>
           <div className="top-actions">
+            {activeGroupAdmin && (
+              <button title="Add members" className="header-action" onClick={() => setAddMembersOpen((open) => !open)}>
+                <Users size={17} />
+                Add
+              </button>
+            )}
             <Bell size={18} />
             <span>{notifications.length}</span>
             <span className={socketConnected ? 'connection live' : 'connection'}>{socketConnected ? 'Live' : 'Backup'}</span>
           </div>
         </header>
+
+        {addMembersOpen && (
+          <form className="add-members-panel" onSubmit={addMembersToGroup}>
+            <div className="group-search">
+              <Search size={16} />
+              <input value={addMemberSearch} onChange={(event) => setAddMemberSearch(event.target.value)} placeholder="Search people to add" />
+            </div>
+
+            <div className="selected-members">
+              {membersToAdd.length === 0
+                ? <span>Select users to add to this group</span>
+                : users.filter((user) => membersToAdd.includes(user._id)).map((user) => <span key={user._id}>{user.name}</span>)}
+            </div>
+
+            <div className="group-member-list add-member-list">
+              {addableMembers.length === 0 && <p className="empty-members">No more users to add</p>}
+              {addableMembers.map((user) => {
+                const selected = membersToAdd.includes(user._id);
+                return (
+                  <button type="button" className={selected ? 'selected' : ''} key={user._id} onClick={() => toggleMemberToAdd(user._id)}>
+                    <span className={user.isOnline ? 'status online' : 'status'} />
+                    <span>
+                      <strong>{user.name}</strong>
+                      <small>{user.email}</small>
+                    </span>
+                    <span className="member-check">{selected && <Check size={15} />}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="member-panel-actions">
+              <button type="button" onClick={() => setAddMembersOpen(false)}>Cancel</button>
+              <button className="primary" type="submit" disabled={membersToAdd.length === 0}>Add members</button>
+            </div>
+          </form>
+        )}
 
         <div className="chat-layout">
           <nav className="chat-list">

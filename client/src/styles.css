@@ -575,6 +575,19 @@ small {
   font-weight: 900;
 }
 
+.header-action {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 10px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #ff4f9a 0%, #7c3aed 60%, #02b8c8 100%);
+  font-weight: 900;
+}
+
 .connection {
   padding: 4px 7px;
   border-radius: 8px;
@@ -586,6 +599,51 @@ small {
 .connection.live {
   color: #07543f;
   background: #d8fff1;
+}
+
+.add-members-panel {
+  display: grid;
+  gap: 10px;
+  padding: 13px 18px;
+  border-bottom: 1px solid rgba(124, 58, 237, 0.12);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(242, 234, 255, 0.78));
+}
+
+.add-member-list {
+  max-height: 168px;
+}
+
+.empty-members {
+  margin: 0;
+  padding: 10px;
+  color: #71809b;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.member-panel-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.member-panel-actions button {
+  min-height: 40px;
+  border: 0;
+  border-radius: 8px;
+  color: #40206f;
+  background: #f2eaff;
+  font-weight: 900;
+}
+
+.member-panel-actions .primary {
+  color: #ffffff;
+}
+
+.member-panel-actions .primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  box-shadow: none;
 }
 
 .chat-layout {
