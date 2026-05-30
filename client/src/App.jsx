@@ -86,6 +86,7 @@ export default function App() {
   const bottomRef = useRef(null);
   const fileInputRef = useRef(null);
   const groupNameRef = useRef(null);
+  const messageInputRef = useRef(null);
   const typingTimerRef = useRef(null);
 
   const currentUserId = session?.user?.id || session?.user?._id;
@@ -316,8 +317,28 @@ export default function App() {
       socketRef.current?.emit('typing:stop', activeChat._id);
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Message failed');
+      try {
+        const { data } = await api.post('/messages', payload);
+        addMessageToView(data);
+        setMessageText('');
+        setAttachmentUrl('');
+        setAttachment(null);
+        setReplyingTo(null);
+        setEmojiPickerOpen(false);
+        setError('');
+        window.clearTimeout(typingTimerRef.current);
+        socketRef.current?.emit('typing:stop', activeChat._id);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      } catch (fallbackErr) {
+        setError(fallbackErr.response?.data?.message || err.message || 'Message failed');
+      }
     }
+  }
+
+  function startReply(message) {
+    setReplyingTo(message);
+    setError('');
+    window.setTimeout(() => messageInputRef.current?.focus(), 0);
   }
 
   function addMessageToView(message) {
@@ -352,19 +373,33 @@ export default function App() {
     if (!window.confirm('Unsend this message?')) return;
 
     try {
+      let deletedMessage = null;
+
       if (socketRef.current?.connected) {
         const result = await new Promise((resolve) => {
           socketRef.current.emit('message:delete', { messageId: message._id }, resolve);
           window.setTimeout(() => resolve({ ok: false, message: 'Unsend timed out' }), 7000);
         });
         if (!result?.ok) throw new Error(result?.message || 'Could not unsend message');
-        if (result.message) setMessages((current) => current.map((item) => item._id === result.message._id ? result.message : item));
+        deletedMessage = result.message;
       } else {
         const { data } = await api.delete(`/messages/${message._id}`);
-        setMessages((current) => current.map((item) => item._id === data._id ? data : item));
+        deletedMessage = data;
+      }
+
+      if (deletedMessage) {
+        setMessages((current) => current.map((item) => item._id === deletedMessage._id ? deletedMessage : item));
+        updateChatLastMessage(deletedMessage);
       }
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Could not unsend message');
+      try {
+        const { data } = await api.delete(`/messages/${message._id}`);
+        setMessages((current) => current.map((item) => item._id === data._id ? data : item));
+        updateChatLastMessage(data);
+        setError('');
+      } catch (fallbackErr) {
+        setError(fallbackErr.response?.data?.message || err.message || 'Could not unsend message');
+      }
     }
   }
 
@@ -733,8 +768,8 @@ export default function App() {
                             {message.text && <p>{message.text}</p>}
                             {renderAttachment(message)}
                             <div className="message-actions">
-                              <button onClick={() => setReplyingTo(message)} title="Reply to message"><Reply size={14} /> Reply</button>
-                              {mine && <button onClick={() => unsendMessage(message)} title="Unsend message"><Trash2 size={14} /> Unsend</button>}
+                              <button type="button" onClick={() => startReply(message)} title="Reply to message"><Reply size={14} /> Reply</button>
+                              {mine && <button type="button" onClick={() => unsendMessage(message)} title="Unsend message"><Trash2 size={14} /> Unsend</button>}
                             </div>
                           </>
                         )}
@@ -788,7 +823,7 @@ export default function App() {
                   <Paperclip size={19} />
                 </button>
                 <input ref={fileInputRef} className="hidden-file" type="file" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt" onChange={handleFileChange} />
-                <input placeholder="Type a message or add emojis" value={messageText} onChange={(event) => handleMessageInput(event.target.value)} />
+                <input ref={messageInputRef} placeholder="Type a message or add emojis" value={messageText} onChange={(event) => handleMessageInput(event.target.value)} />
                 <button title="Send message" className="send-button" type="submit"><Send size={19} /></button>
               </div>
             </form>
