@@ -281,7 +281,7 @@ input:focus {
   background:
     radial-gradient(circle at 8% 12%, rgba(255, 79, 154, 0.14), transparent 24%),
     radial-gradient(circle at 92% 8%, rgba(2, 184, 200, 0.16), transparent 28%),
-    linear-gradient(135deg, #f8fbff 0%, #f1eafd 48%, #e8fbff 100%);
+    linear-gradient(135deg, #f8fbff 0%, #eef2ff 48%, #e8fbff 100%);
 }
 
 .app-shell.light-mode .brand-mark.compact strong,
@@ -293,6 +293,8 @@ input:focus {
 .chat-panel,
 .admin-panel {
   min-height: 0;
+  border-color: rgba(255, 255, 255, 0.32);
+  box-shadow: 0 20px 70px rgba(8, 12, 32, 0.24);
 }
 
 .sidebar,
@@ -608,7 +610,9 @@ small {
 .topbar {
   padding: 17px 20px;
   border-bottom: 1px solid rgba(124, 58, 237, 0.12);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.82), rgba(238, 247, 255, 0.7));
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(238, 247, 255, 0.82)),
+    linear-gradient(90deg, rgba(255, 79, 154, 0.12), rgba(2, 184, 200, 0.1));
 }
 
 .topbar h2 {
@@ -834,6 +838,10 @@ small {
   box-shadow: 0 10px 24px rgba(32, 40, 76, 0.1);
 }
 
+.bubble:hover .message-actions {
+  opacity: 1;
+}
+
 .bubble.mine {
   align-self: flex-end;
   color: #ffffff;
@@ -852,16 +860,67 @@ small {
   gap: 2px;
 }
 
+.reply-card,
+.reply-preview {
+  border-left: 3px solid #7c3aed;
+  border-radius: 8px;
+  background: rgba(242, 234, 255, 0.78);
+}
+
+.reply-card {
+  display: grid;
+  gap: 3px;
+  max-width: 100%;
+  margin-top: 8px;
+  padding: 8px 10px;
+}
+
+.reply-card strong,
+.reply-preview strong {
+  color: #5e2ca5;
+  font-size: 12px;
+}
+
+.reply-card span,
+.reply-preview span {
+  display: block;
+  overflow: hidden;
+  color: #53627c;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bubble.mine .reply-card {
+  border-left-color: #ffffff;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.bubble.mine .reply-card strong,
+.bubble.mine .reply-card span {
+  color: #ffffff;
+}
+
 .deleted-message {
   color: #71809b;
   font-style: italic;
 }
 
+.message-actions {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 8px;
+  opacity: 0.86;
+  transition: opacity 160ms ease;
+}
+
+.message-actions button,
 .unsend-button {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  margin-top: 8px;
   border: 0;
   border-radius: 8px;
   padding: 6px 8px;
@@ -893,6 +952,30 @@ small {
   padding: 14px;
   border-top: 1px solid rgba(124, 58, 237, 0.12);
   background: rgba(255, 255, 255, 0.9);
+}
+
+.reply-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 10px 9px 12px;
+}
+
+.reply-preview div {
+  min-width: 0;
+}
+
+.reply-preview button {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 8px;
+  color: #40206f;
+  background: rgba(255, 255, 255, 0.82);
 }
 
 .composer-error {
@@ -1078,13 +1161,14 @@ small {
 @media (max-width: 760px) {
   .auth-panel,
   .app-shell,
-  .chat-layout,
-  .composer-row {
+  .chat-layout {
     grid-template-columns: 1fr;
   }
 
   .composer-row {
     display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    gap: 7px;
   }
 
   .emoji-popover {
@@ -1101,10 +1185,144 @@ small {
 
   .app-shell {
     height: auto;
+    min-height: 100vh;
+    gap: 10px;
+    padding: 10px;
   }
 
   .sidebar,
   .chat-panel {
-    min-height: 520px;
+    min-height: auto;
+  }
+
+  .sidebar {
+    max-height: 42vh;
+    padding: 10px;
+  }
+
+  .app-brand {
+    padding-bottom: 10px;
+  }
+
+  .profile {
+    padding: 10px;
+  }
+
+  .user-list {
+    min-height: 120px;
+  }
+
+  .chat-panel {
+    min-height: 68vh;
+  }
+
+  .topbar {
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .topbar h2 {
+    font-size: 20px;
+  }
+
+  .top-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    padding: 7px;
+  }
+
+  .header-action {
+    min-height: 30px;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+
+  .chat-layout {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .chat-list {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 10px;
+    border-right: 0;
+    border-bottom: 1px solid rgba(124, 58, 237, 0.12);
+  }
+
+  .chat-list .section-title {
+    display: none;
+  }
+
+  .chat-list button {
+    min-width: 190px;
+  }
+
+  .messages {
+    padding: 14px 10px;
+  }
+
+  .bubble {
+    max-width: 92%;
+  }
+
+  .composer {
+    padding: 10px;
+  }
+
+  .tool-button,
+  .send-button {
+    width: 38px;
+    height: 38px;
+  }
+
+  .message-media {
+    max-width: min(280px, 78vw);
+    max-height: 240px;
+  }
+
+  .admin-panel {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-screen {
+    padding: 12px;
+  }
+
+  .auth-panel {
+    gap: 18px;
+    padding: 18px;
+  }
+
+  .auth-panel h1 {
+    font-size: 38px;
+  }
+
+  .brand-mark strong {
+    font-size: 26px;
+  }
+
+  .topbar {
+    display: grid;
+  }
+
+  .top-actions {
+    justify-content: flex-start;
+  }
+
+  .chat-list button {
+    min-width: 165px;
+  }
+
+  .composer-row {
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+  }
+
+  .composer-row input {
+    padding: 10px;
   }
 }

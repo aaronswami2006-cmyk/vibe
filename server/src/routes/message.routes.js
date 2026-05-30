@@ -14,6 +14,11 @@ router.get('/:chatId', requireAuth, async (req, res, next) => {
 
     const messages = await Message.find({ chat: chat._id })
       .populate('sender', 'name email')
+      .populate({
+        path: 'replyTo',
+        select: 'text attachmentName attachmentType isDeleted sender',
+        populate: { path: 'sender', select: 'name email' }
+      })
       .sort({ createdAt: 1 });
 
     res.json(messages);
@@ -24,7 +29,7 @@ router.get('/:chatId', requireAuth, async (req, res, next) => {
 
 router.post('/', requireAuth, async (req, res, next) => {
   try {
-    const { chatId, text, attachmentUrl, attachmentName, attachmentType } = req.body;
+    const { chatId, text, attachmentUrl, attachmentName, attachmentType, replyTo } = req.body;
     const chat = await Chat.findOne({ _id: chatId, members: req.user._id });
 
     if (!chat) {
@@ -35,6 +40,13 @@ router.post('/', requireAuth, async (req, res, next) => {
       return res.status(400).json({ message: 'Message text or attachment is required' });
     }
 
+    if (replyTo) {
+      const original = await Message.findOne({ _id: replyTo, chat: chat._id });
+      if (!original) {
+        return res.status(400).json({ message: 'Reply message not found in this chat' });
+      }
+    }
+
     let message = await Message.create({
       chat: chat._id,
       sender: req.user._id,
@@ -42,13 +54,21 @@ router.post('/', requireAuth, async (req, res, next) => {
       attachmentUrl,
       attachmentName,
       attachmentType,
+      replyTo,
       readBy: [req.user._id]
     });
 
     chat.lastMessage = message._id;
     await chat.save();
 
-    message = await message.populate('sender', 'name email');
+    message = await message.populate([
+      { path: 'sender', select: 'name email' },
+      {
+        path: 'replyTo',
+        select: 'text attachmentName attachmentType isDeleted sender',
+        populate: { path: 'sender', select: 'name email' }
+      }
+    ]);
     res.status(201).json(message);
   } catch (error) {
     next(error);

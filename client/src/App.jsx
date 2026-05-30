@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import EmojiPicker from 'emoji-picker-react';
-import { Bell, Check, File, Info, LogOut, MessageCircle, Moon, Paperclip, Plus, Search, Send, Shield, Smile, Sparkles, Sun, Trash2, Users, X } from 'lucide-react';
+import { Bell, Check, File, Info, LogOut, MessageCircle, Moon, Paperclip, Plus, Reply, Search, Send, Shield, Smile, Sparkles, Sun, Trash2, Users, X } from 'lucide-react';
 import { api } from './api.js';
 import { createSocket } from './socket.js';
 
@@ -18,6 +18,15 @@ function getInitials(name = 'User') {
 
 function formatMessageTime(date) {
   return new Intl.DateTimeFormat([], { hour: '2-digit', minute: '2-digit' }).format(new Date(date));
+}
+
+function getMessagePreview(message) {
+  if (!message) return '';
+  if (message.isDeleted) return 'This message was unsent';
+  if (message.text?.trim()) return message.text;
+  if (message.attachmentName) return message.attachmentName;
+  if (message.attachmentUrl) return 'Attachment';
+  return 'Message';
 }
 
 function getStoredSession() {
@@ -62,6 +71,7 @@ export default function App() {
   const [membersToAdd, setMembersToAdd] = useState([]);
   const [groupInfoOpen, setGroupInfoOpen] = useState(false);
   const [typingUsers, setTypingUsers] = useState([]);
+  const [replyingTo, setReplyingTo] = useState(null);
   const [theme, setTheme] = useState(() => localStorage.getItem('vibe_theme') || 'dark');
   const socketRef = useRef(null);
   const activeChatRef = useRef(null);
@@ -253,6 +263,7 @@ export default function App() {
     setMembersToAdd([]);
     setAddMemberSearch('');
     setTypingUsers([]);
+    setReplyingTo(null);
     socketRef.current?.emit('chat:join', chat._id);
     const { data } = await api.get(`/messages/${chat._id}`);
     setMessages(data);
@@ -268,7 +279,8 @@ export default function App() {
       text: messageText,
       attachmentUrl: finalAttachmentUrl,
       attachmentName: attachment?.name,
-      attachmentType: attachment?.type
+      attachmentType: attachment?.type,
+      replyTo: replyingTo?._id
     };
 
     try {
@@ -291,6 +303,7 @@ export default function App() {
       setMessageText('');
       setAttachmentUrl('');
       setAttachment(null);
+      setReplyingTo(null);
       setEmojiPickerOpen(false);
       setError('');
       window.clearTimeout(typingTimerRef.current);
@@ -688,21 +701,30 @@ export default function App() {
               {messages.map((message) => {
                 const mine = (message.sender?._id || message.sender) === currentUserId;
                 return (
-                  <article className={mine ? 'bubble mine' : 'bubble'} key={message._id}>
-                    <div className="message-meta">
-                      <span className="avatar mini">{getInitials(message.sender?.name)}</span>
-                      <small>{message.sender?.name || 'User'} - {formatMessageTime(message.createdAt)}</small>
-                    </div>
-                    {message.isDeleted ? (
-                      <p className="deleted-message">This message was unsent</p>
-                    ) : (
-                      <>
-                        {message.text && <p>{message.text}</p>}
-                        {renderAttachment(message)}
-                        {mine && <button className="unsend-button" onClick={() => unsendMessage(message)} title="Unsend message"><Trash2 size={14} /> Unsend</button>}
-                      </>
-                    )}
-                  </article>
+                      <article className={mine ? 'bubble mine' : 'bubble'} key={message._id}>
+                        <div className="message-meta">
+                          <span className="avatar mini">{getInitials(message.sender?.name)}</span>
+                          <small>{message.sender?.name || 'User'} - {formatMessageTime(message.createdAt)}</small>
+                        </div>
+                        {message.replyTo && (
+                          <div className="reply-card">
+                            <strong>{message.replyTo.sender?.name || 'User'}</strong>
+                            <span>{getMessagePreview(message.replyTo)}</span>
+                          </div>
+                        )}
+                        {message.isDeleted ? (
+                          <p className="deleted-message">This message was unsent</p>
+                        ) : (
+                          <>
+                            {message.text && <p>{message.text}</p>}
+                            {renderAttachment(message)}
+                            <div className="message-actions">
+                              <button onClick={() => setReplyingTo(message)} title="Reply to message"><Reply size={14} /> Reply</button>
+                              {mine && <button onClick={() => unsendMessage(message)} title="Unsend message"><Trash2 size={14} /> Unsend</button>}
+                            </div>
+                          </>
+                        )}
+                      </article>
                 );
               })}
               {typingUsers.length > 0 && <p className="typing-indicator">{typingUsers.map((user) => user.name).join(', ')} typing...</p>}
@@ -711,6 +733,15 @@ export default function App() {
 
             <form className="composer" onSubmit={sendMessage}>
               {error && <p className="composer-error">{error}</p>}
+              {replyingTo && (
+                <div className="reply-preview">
+                  <div>
+                    <strong>Replying to {replyingTo.sender?.name || 'User'}</strong>
+                    <span>{getMessagePreview(replyingTo)}</span>
+                  </div>
+                  <button type="button" title="Cancel reply" onClick={() => setReplyingTo(null)}><X size={16} /></button>
+                </div>
+              )}
               {attachment && (
                 <div className="attachment-preview">
                   <span><Paperclip size={16} /> {attachment.name}</span>

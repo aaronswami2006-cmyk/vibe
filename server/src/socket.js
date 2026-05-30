@@ -53,11 +53,16 @@ export function configureSocket(httpServer) {
       if (chat) socket.join(chatId);
     });
 
-    socket.on('message:send', async ({ chatId, text, attachmentUrl, attachmentName, attachmentType }, callback) => {
+    socket.on('message:send', async ({ chatId, text, attachmentUrl, attachmentName, attachmentType, replyTo }, callback) => {
       try {
         const chat = await Chat.findOne({ _id: chatId, members: userId });
         if (!chat) throw new Error('Chat not found');
         if (!text?.trim() && !attachmentUrl?.trim()) throw new Error('Message text or attachment is required');
+
+        if (replyTo) {
+          const original = await Message.findOne({ _id: replyTo, chat: chatId }).select('_id');
+          if (!original) throw new Error('Reply message not found in this chat');
+        }
 
         let message = await Message.create({
           chat: chatId,
@@ -66,12 +71,20 @@ export function configureSocket(httpServer) {
           attachmentUrl,
           attachmentName,
           attachmentType,
+          replyTo,
           readBy: [userId]
         });
 
         chat.lastMessage = message._id;
         await chat.save();
-        message = await message.populate('sender', 'name email');
+        message = await message.populate([
+          { path: 'sender', select: 'name email' },
+          {
+            path: 'replyTo',
+            select: 'text attachmentName attachmentType isDeleted sender',
+            populate: { path: 'sender', select: 'name email' }
+          }
+        ]);
 
         io.to(chatId).emit('message:new', message);
         chat.members
