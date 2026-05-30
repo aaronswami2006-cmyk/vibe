@@ -277,6 +277,18 @@ input:focus {
     linear-gradient(135deg, #151638 0%, #27154f 44%, #074456 100%);
 }
 
+.app-shell.light-mode {
+  background:
+    radial-gradient(circle at 8% 12%, rgba(255, 79, 154, 0.14), transparent 24%),
+    radial-gradient(circle at 92% 8%, rgba(2, 184, 200, 0.16), transparent 28%),
+    linear-gradient(135deg, #f8fbff 0%, #f1eafd 48%, #e8fbff 100%);
+}
+
+.app-shell.light-mode .brand-mark.compact strong,
+.app-shell.light-mode .sidebar-header {
+  color: #172033;
+}
+
 .sidebar,
 .chat-panel,
 .admin-panel {
@@ -301,6 +313,17 @@ input:focus {
   color: #ffd166;
 }
 
+.theme-toggle {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  color: #40206f;
+  background: #f2eaff;
+}
+
 .profile,
 .sidebar-header,
 .topbar {
@@ -313,6 +336,34 @@ input:focus {
   border: 1px solid rgba(124, 58, 237, 0.12);
   border-radius: 8px;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.76), rgba(238, 245, 255, 0.72));
+}
+
+.avatar {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 8px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #ff4f9a 0%, #7c3aed 52%, #02b8c8 100%);
+  font-size: 15px;
+  font-weight: 950;
+  box-shadow: 0 10px 22px rgba(124, 58, 237, 0.22);
+}
+
+.avatar.small {
+  width: 32px;
+  height: 32px;
+  font-size: 12px;
+}
+
+.avatar.mini {
+  width: 24px;
+  height: 24px;
+  display: inline-grid;
+  margin-right: 7px;
+  font-size: 10px;
 }
 
 .profile strong,
@@ -588,6 +639,11 @@ small {
   font-weight: 900;
 }
 
+.header-action.subtle {
+  color: #40206f;
+  background: #ffffff;
+}
+
 .connection {
   padding: 4px 7px;
   border-radius: 8px;
@@ -607,6 +663,35 @@ small {
   padding: 13px 18px;
   border-bottom: 1px solid rgba(124, 58, 237, 0.12);
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(242, 234, 255, 0.78));
+}
+
+.group-info-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(124, 58, 237, 0.12);
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.group-info-panel h3 {
+  margin: 3px 0 0;
+}
+
+.member-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.member-grid span {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 10px;
+  border-radius: 8px;
+  color: #40206f;
+  background: #f2eaff;
+  font-size: 13px;
+  font-weight: 850;
 }
 
 .add-member-list {
@@ -687,6 +772,51 @@ small {
     radial-gradient(circle at 86% 78%, rgba(2, 184, 200, 0.18), transparent 28%);
 }
 
+.welcome-panel {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  min-height: 0;
+  padding: 34px;
+  text-align: center;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.82)),
+    radial-gradient(circle at 25% 20%, rgba(255, 79, 154, 0.2), transparent 26%),
+    radial-gradient(circle at 78% 70%, rgba(2, 184, 200, 0.2), transparent 28%);
+}
+
+.welcome-panel .brand-mark {
+  margin-bottom: 10px;
+}
+
+.welcome-panel h2 {
+  max-width: 520px;
+  margin: 0;
+  font-size: clamp(30px, 4vw, 54px);
+  line-height: 1;
+}
+
+.welcome-panel p {
+  max-width: 560px;
+  color: #53627c;
+  line-height: 1.55;
+}
+
+.welcome-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.welcome-actions span {
+  padding: 8px 11px;
+  border-radius: 8px;
+  color: #40206f;
+  background: #f2eaff;
+  font-weight: 850;
+}
+
 .messages {
   display: flex;
   flex-direction: column;
@@ -714,6 +844,42 @@ small {
 .bubble p {
   margin: 4px 0 0;
   overflow-wrap: anywhere;
+}
+
+.message-meta {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.deleted-message {
+  color: #71809b;
+  font-style: italic;
+}
+
+.unsend-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  border: 0;
+  border-radius: 8px;
+  padding: 6px 8px;
+  color: #40206f;
+  background: rgba(255, 255, 255, 0.78);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.typing-indicator {
+  width: fit-content;
+  margin: 0;
+  padding: 8px 11px;
+  border-radius: 8px;
+  color: #5e2ca5;
+  background: rgba(242, 234, 255, 0.92);
+  font-size: 13px;
+  font-weight: 850;
 }
 
 .bubble.mine small,

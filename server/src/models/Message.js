@@ -8,6 +8,8 @@ const messageSchema = new mongoose.Schema(
     attachmentUrl: { type: String, trim: true },
     attachmentName: { type: String, trim: true },
     attachmentType: { type: String, trim: true },
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: { type: Date },
     readBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
   },
   { timestamps: true }

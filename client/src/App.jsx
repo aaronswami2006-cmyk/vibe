@@ -1,11 +1,24 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import EmojiPicker from 'emoji-picker-react';
-import { Bell, Check, File, LogOut, MessageCircle, Paperclip, Plus, Search, Send, Shield, Smile, Sparkles, Users, X } from 'lucide-react';
+import { Bell, Check, File, Info, LogOut, MessageCircle, Moon, Paperclip, Plus, Search, Send, Shield, Smile, Sparkles, Sun, Trash2, Users, X } from 'lucide-react';
 import { api } from './api.js';
 import { createSocket } from './socket.js';
 
 const emptyAuth = { name: '', email: '', password: '' };
 const maxAttachmentSize = 6 * 1024 * 1024;
+
+function getInitials(name = 'User') {
+  return name
+    .split(' ')
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+function formatMessageTime(date) {
+  return new Intl.DateTimeFormat([], { hour: '2-digit', minute: '2-digit' }).format(new Date(date));
+}
 
 function getStoredSession() {
   const token = localStorage.getItem('chat_token');
@@ -47,11 +60,15 @@ export default function App() {
   const [addMembersOpen, setAddMembersOpen] = useState(false);
   const [addMemberSearch, setAddMemberSearch] = useState('');
   const [membersToAdd, setMembersToAdd] = useState([]);
+  const [groupInfoOpen, setGroupInfoOpen] = useState(false);
+  const [typingUsers, setTypingUsers] = useState([]);
+  const [theme, setTheme] = useState(() => localStorage.getItem('vibe_theme') || 'dark');
   const socketRef = useRef(null);
   const activeChatRef = useRef(null);
   const bottomRef = useRef(null);
   const fileInputRef = useRef(null);
   const groupNameRef = useRef(null);
+  const typingTimerRef = useRef(null);
 
   const currentUserId = session?.user?.id || session?.user?._id;
 
@@ -84,6 +101,18 @@ export default function App() {
       addMessageToView(message);
     });
 
+    socket.on('message:deleted', (message) => {
+      setMessages((current) => current.map((item) => item._id === message._id ? message : item));
+    });
+
+    socket.on('typing:update', ({ chatId, userId, name, isTyping }) => {
+      if (chatId !== activeChatRef.current?._id || userId === currentUserId) return;
+      setTypingUsers((current) => {
+        const filtered = current.filter((user) => user.userId !== userId);
+        return isTyping ? [...filtered, { userId, name }] : filtered;
+      });
+    });
+
     socket.on('notification:new', (notification) => {
       setNotifications((current) => [notification, ...current].slice(0, 8));
       if ('Notification' in window && Notification.permission === 'granted') {
@@ -111,6 +140,10 @@ export default function App() {
       window.setTimeout(() => groupNameRef.current?.focus(), 0);
     }
   }, [groupPanelOpen]);
+
+  useEffect(() => {
+    localStorage.setItem('vibe_theme', theme);
+  }, [theme]);
 
   async function refreshData() {
     const [usersRes, chatsRes] = await Promise.all([api.get('/users'), api.get('/chats')]);
@@ -216,8 +249,10 @@ export default function App() {
   async function loadMessages(chat) {
     setActiveChat(chat);
     setAddMembersOpen(false);
+    setGroupInfoOpen(false);
     setMembersToAdd([]);
     setAddMemberSearch('');
+    setTypingUsers([]);
     socketRef.current?.emit('chat:join', chat._id);
     const { data } = await api.get(`/messages/${chat._id}`);
     setMessages(data);
@@ -258,6 +293,8 @@ export default function App() {
       setAttachment(null);
       setEmojiPickerOpen(false);
       setError('');
+      window.clearTimeout(typingTimerRef.current);
+      socketRef.current?.emit('typing:stop', activeChat._id);
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Message failed');
@@ -271,6 +308,37 @@ export default function App() {
       return [...current, message];
     });
     setChats((current) => current.map((chat) => chat._id === message.chat ? { ...chat, lastMessage: message } : chat));
+  }
+
+  function handleMessageInput(value) {
+    setMessageText(value);
+    if (!activeChat?._id || !socketRef.current?.connected) return;
+
+    socketRef.current.emit('typing:start', activeChat._id);
+    window.clearTimeout(typingTimerRef.current);
+    typingTimerRef.current = window.setTimeout(() => {
+      socketRef.current?.emit('typing:stop', activeChat._id);
+    }, 1100);
+  }
+
+  async function unsendMessage(message) {
+    if (!window.confirm('Unsend this message?')) return;
+
+    try {
+      if (socketRef.current?.connected) {
+        const result = await new Promise((resolve) => {
+          socketRef.current.emit('message:delete', { messageId: message._id }, resolve);
+          window.setTimeout(() => resolve({ ok: false, message: 'Unsend timed out' }), 7000);
+        });
+        if (!result?.ok) throw new Error(result?.message || 'Could not unsend message');
+        if (result.message) setMessages((current) => current.map((item) => item._id === result.message._id ? result.message : item));
+      } else {
+        const { data } = await api.delete(`/messages/${message._id}`);
+        setMessages((current) => current.map((item) => item._id === data._id ? data : item));
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Could not unsend message');
+    }
   }
 
   function handleFileChange(event) {
@@ -407,17 +475,20 @@ export default function App() {
   }
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell ${theme === 'light' ? 'light-mode' : 'dark-mode'}`}>
       <aside className="sidebar">
         <div className="app-brand">
           <div className="brand-mark compact">
             <span>V</span>
             <strong>Vibe</strong>
           </div>
-          <Sparkles size={18} />
+          <button className="theme-toggle" title="Toggle theme" onClick={() => setTheme((current) => current === 'dark' ? 'light' : 'dark')}>
+            {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+          </button>
         </div>
 
         <div className="profile">
+          <span className="avatar">{getInitials(session.user.name)}</span>
           <div>
             <strong>{session.user.name}</strong>
             <span>{session.user.role}</span>
@@ -496,7 +567,7 @@ export default function App() {
           {filteredUsers.map((user) => (
             <div className="user-row" key={user._id}>
               <button onClick={() => openDirectChat(user._id)}>
-                <span className={user.isOnline ? 'status online' : 'status'} />
+                <span className="avatar small">{getInitials(user.name)}</span>
                 <span>
                   <strong>{user.name}</strong>
                   <small>{user.isOnline ? 'Online' : 'Offline'}</small>
@@ -515,6 +586,12 @@ export default function App() {
             {activeChat?.isGroup && <small>{activeChat.members?.length || 0} members</small>}
           </div>
           <div className="top-actions">
+            {activeChat?.isGroup && (
+              <button title="Group info" className="header-action subtle" onClick={() => setGroupInfoOpen((open) => !open)}>
+                <Info size={17} />
+                Info
+              </button>
+            )}
             {activeGroupAdmin && (
               <button title="Add members" className="header-action" onClick={() => setAddMembersOpen((open) => !open)}>
                 <Users size={17} />
@@ -526,6 +603,20 @@ export default function App() {
             <span className={socketConnected ? 'connection live' : 'connection'}>{socketConnected ? 'Live' : 'Backup'}</span>
           </div>
         </header>
+
+        {groupInfoOpen && activeChat?.isGroup && (
+          <section className="group-info-panel">
+            <div>
+              <p className="eyebrow">Group info</p>
+              <h3>{activeChat.name}</h3>
+            </div>
+            <div className="member-grid">
+              {activeChat.members?.map((member) => (
+                <span key={member._id}><span className="avatar mini">{getInitials(member.name)}</span>{member.name}</span>
+              ))}
+            </div>
+          </section>
+        )}
 
         {addMembersOpen && (
           <form className="add-members-panel" onSubmit={addMembersToGroup}>
@@ -576,17 +667,45 @@ export default function App() {
           </nav>
 
           <div className="conversation">
+            {!activeChat ? (
+              <section className="welcome-panel">
+                <div className="brand-mark">
+                  <span>V</span>
+                  <strong>Vibe</strong>
+                </div>
+                <h2>Welcome to your real-time chat workspace.</h2>
+                <p>Select a person, create a group, send emojis, share media, and show the live MongoDB-backed workflow in your exhibition.</p>
+                <div className="welcome-actions">
+                  <span>Private chats</span>
+                  <span>Groups</span>
+                  <span>Media</span>
+                  <span>Typing</span>
+                </div>
+              </section>
+            ) : (
+              <>
             <div className="messages">
               {messages.map((message) => {
                 const mine = (message.sender?._id || message.sender) === currentUserId;
                 return (
                   <article className={mine ? 'bubble mine' : 'bubble'} key={message._id}>
-                    <small>{message.sender?.name || 'User'}</small>
-                    {message.text && <p>{message.text}</p>}
-                    {renderAttachment(message)}
+                    <div className="message-meta">
+                      <span className="avatar mini">{getInitials(message.sender?.name)}</span>
+                      <small>{message.sender?.name || 'User'} - {formatMessageTime(message.createdAt)}</small>
+                    </div>
+                    {message.isDeleted ? (
+                      <p className="deleted-message">This message was unsent</p>
+                    ) : (
+                      <>
+                        {message.text && <p>{message.text}</p>}
+                        {renderAttachment(message)}
+                        {mine && <button className="unsend-button" onClick={() => unsendMessage(message)} title="Unsend message"><Trash2 size={14} /> Unsend</button>}
+                      </>
+                    )}
                   </article>
                 );
               })}
+              {typingUsers.length > 0 && <p className="typing-indicator">{typingUsers.map((user) => user.name).join(', ')} typing...</p>}
               <div ref={bottomRef} />
             </div>
 
@@ -624,10 +743,12 @@ export default function App() {
                   <Paperclip size={19} />
                 </button>
                 <input ref={fileInputRef} className="hidden-file" type="file" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt" onChange={handleFileChange} />
-                <input placeholder="Type a message or add emojis" value={messageText} onChange={(event) => setMessageText(event.target.value)} />
+                <input placeholder="Type a message or add emojis" value={messageText} onChange={(event) => handleMessageInput(event.target.value)} />
                 <button title="Send message" className="send-button" type="submit"><Send size={19} /></button>
               </div>
             </form>
+              </>
+            )}
           </div>
         </div>
       </section>

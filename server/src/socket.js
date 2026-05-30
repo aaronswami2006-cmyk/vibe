@@ -92,6 +92,41 @@ export function configureSocket(httpServer) {
       }
     });
 
+    socket.on('typing:start', async (chatId) => {
+      const chat = await Chat.findOne({ _id: chatId, members: userId }).select('_id');
+      if (chat) socket.to(chatId).emit('typing:update', { chatId, userId, name: socket.user.name, isTyping: true });
+    });
+
+    socket.on('typing:stop', async (chatId) => {
+      const chat = await Chat.findOne({ _id: chatId, members: userId }).select('_id');
+      if (chat) socket.to(chatId).emit('typing:update', { chatId, userId, name: socket.user.name, isTyping: false });
+    });
+
+    socket.on('message:delete', async ({ messageId }, callback) => {
+      try {
+        let message = await Message.findById(messageId);
+        if (!message) throw new Error('Message not found');
+
+        const chat = await Chat.findOne({ _id: message.chat, members: userId });
+        if (!chat) throw new Error('Chat not found');
+        if (message.sender.toString() !== userId) throw new Error('You can only unsend your own messages');
+
+        message.text = '';
+        message.attachmentUrl = undefined;
+        message.attachmentName = undefined;
+        message.attachmentType = undefined;
+        message.isDeleted = true;
+        message.deletedAt = new Date();
+        await message.save();
+        message = await message.populate('sender', 'name email');
+
+        io.to(chat._id.toString()).emit('message:deleted', message);
+        callback?.({ ok: true, message });
+      } catch (error) {
+        callback?.({ ok: false, message: error.message });
+      }
+    });
+
     socket.on('disconnect', async () => {
       onlineSockets.delete(userId);
       await User.findByIdAndUpdate(userId, { isOnline: false, lastSeen: new Date() });
