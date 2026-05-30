@@ -388,18 +388,22 @@ export default function App() {
     if (deleteResult) return deleteResult;
 
     if (socketRef.current?.connected) {
-      const socketResult = await new Promise((resolve, reject) => {
-        const timeout = window.setTimeout(() => reject(new Error('Unsend timed out')), 7000);
-        socketRef.current.emit('message:delete', { messageId: message._id }, (result) => {
-          window.clearTimeout(timeout);
-          if (result?.ok && result.message) resolve(result.message);
-          else reject(new Error(result?.message || 'Could not unsend message'));
+      try {
+        const socketResult = await new Promise((resolve, reject) => {
+          const timeout = window.setTimeout(() => reject(new Error('Unsend timed out')), 7000);
+          socketRef.current.emit('message:delete', { messageId: message._id }, (result) => {
+            window.clearTimeout(timeout);
+            if (result?.ok && result.message) resolve(result.message);
+            else reject(new Error(result?.message || 'Could not unsend message'));
+          });
         });
-      });
-      return socketResult;
+        return socketResult;
+      } catch (_error) {
+        throw new Error('Backend update needed: redeploy the Render backend to enable unsend.');
+      }
     }
 
-    throw new Error('Could not unsend message');
+    throw new Error('Backend update needed: redeploy the Render backend to enable unsend.');
   }
 
   async function tryUnsendRequest(request) {
