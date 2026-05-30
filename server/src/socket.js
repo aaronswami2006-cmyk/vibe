@@ -1,4 +1,5 @@
 import { Server } from 'socket.io';
+import mongoose from 'mongoose';
 import Chat from './models/Chat.js';
 import Message from './models/Message.js';
 import User from './models/User.js';
@@ -60,6 +61,7 @@ export function configureSocket(httpServer) {
         if (!text?.trim() && !attachmentUrl?.trim()) throw new Error('Message text or attachment is required');
 
         if (replyTo) {
+          if (!mongoose.isValidObjectId(replyTo)) throw new Error('Reply message not found in this chat');
           const original = await Message.findOne({ _id: replyTo, chat: chatId }).select('_id');
           if (!original) throw new Error('Reply message not found in this chat');
         }
@@ -131,7 +133,14 @@ export function configureSocket(httpServer) {
         message.isDeleted = true;
         message.deletedAt = new Date();
         await message.save();
-        message = await message.populate('sender', 'name email');
+        message = await message.populate([
+          { path: 'sender', select: 'name email' },
+          {
+            path: 'replyTo',
+            select: 'text attachmentName attachmentType isDeleted sender',
+            populate: { path: 'sender', select: 'name email' }
+          }
+        ]);
 
         io.to(chat._id.toString()).emit('message:deleted', message);
         callback?.({ ok: true, message });

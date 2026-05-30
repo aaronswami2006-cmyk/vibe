@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import EmojiPicker from 'emoji-picker-react';
-import { Bell, Check, File, Info, LogOut, MessageCircle, Moon, Paperclip, Plus, Reply, Search, Send, Shield, Smile, Sparkles, Sun, Trash2, Users, X } from 'lucide-react';
+import { Bell, Check, File, Info, LogOut, MessageCircle, Moon, Paperclip, Plus, Reply, Search, Send, Shield, Smile, Sun, Trash2, Users, X } from 'lucide-react';
 import { api } from './api.js';
 import { createSocket } from './socket.js';
 
@@ -27,6 +27,14 @@ function getMessagePreview(message) {
   if (message.attachmentName) return message.attachmentName;
   if (message.attachmentUrl) return 'Attachment';
   return 'Message';
+}
+
+function getMessageChatId(message) {
+  return (message?.chat?._id || message?.chat || '').toString();
+}
+
+function getMessageId(message) {
+  return (message?._id || message || '').toString();
 }
 
 function getStoredSession() {
@@ -113,6 +121,7 @@ export default function App() {
 
     socket.on('message:deleted', (message) => {
       setMessages((current) => current.map((item) => item._id === message._id ? message : item));
+      updateChatLastMessage(message);
     });
 
     socket.on('typing:update', ({ chatId, userId, name, isTyping }) => {
@@ -284,10 +293,7 @@ export default function App() {
     };
 
     try {
-      if (finalAttachmentUrl) {
-        const { data } = await api.post('/messages', payload);
-        addMessageToView(data);
-      } else if (socketRef.current?.connected) {
+      if (socketRef.current?.connected) {
         const result = await new Promise((resolve) => {
           socketRef.current.emit('message:send', payload, resolve);
           window.setTimeout(() => resolve({ ok: false, message: 'Realtime send timed out' }), 7000);
@@ -316,11 +322,19 @@ export default function App() {
 
   function addMessageToView(message) {
     setMessages((current) => {
-      if (message.chat !== activeChatRef.current?._id) return current;
+      if (getMessageChatId(message) !== activeChatRef.current?._id) return current;
       if (current.some((item) => item._id === message._id)) return current;
       return [...current, message];
     });
-    setChats((current) => current.map((chat) => chat._id === message.chat ? { ...chat, lastMessage: message } : chat));
+    updateChatLastMessage(message);
+  }
+
+  function updateChatLastMessage(message) {
+    setChats((current) => current.map((chat) => {
+      const isSameChat = chat._id === getMessageChatId(message);
+      const isSameLastMessage = getMessageId(chat.lastMessage) === getMessageId(message);
+      return isSameChat || isSameLastMessage ? { ...chat, lastMessage: message } : chat;
+    }));
   }
 
   function handleMessageInput(value) {
@@ -674,7 +688,7 @@ export default function App() {
             {chats.map((chat) => (
               <button key={chat._id} className={activeChat?._id === chat._id ? 'selected' : ''} onClick={() => loadMessages(chat)}>
                 <strong>{chat.isGroup ? chat.name : chat.members?.find((member) => member._id !== currentUserId)?.name || 'Direct chat'}</strong>
-                <small>{chat.lastMessage?.text || 'No messages yet'}</small>
+                <small>{chat.lastMessage ? getMessagePreview(chat.lastMessage) : 'No messages yet'}</small>
               </button>
             ))}
           </nav>

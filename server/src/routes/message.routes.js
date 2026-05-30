@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import mongoose from 'mongoose';
 import Chat from '../models/Chat.js';
 import Message from '../models/Message.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -41,6 +42,10 @@ router.post('/', requireAuth, async (req, res, next) => {
     }
 
     if (replyTo) {
+      if (!mongoose.isValidObjectId(replyTo)) {
+        return res.status(400).json({ message: 'Reply message not found in this chat' });
+      }
+
       const original = await Message.findOne({ _id: replyTo, chat: chat._id });
       if (!original) {
         return res.status(400).json({ message: 'Reply message not found in this chat' });
@@ -99,7 +104,14 @@ router.delete('/:messageId', requireAuth, async (req, res, next) => {
     message.isDeleted = true;
     message.deletedAt = new Date();
     await message.save();
-    message = await message.populate('sender', 'name email');
+    message = await message.populate([
+      { path: 'sender', select: 'name email' },
+      {
+        path: 'replyTo',
+        select: 'text attachmentName attachmentType isDeleted sender',
+        populate: { path: 'sender', select: 'name email' }
+      }
+    ]);
 
     res.json(message);
   } catch (error) {
