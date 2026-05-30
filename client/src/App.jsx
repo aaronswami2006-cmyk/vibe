@@ -371,12 +371,46 @@ export default function App() {
 
   async function unsendMessage(message) {
     try {
-      const { data } = await api.post(`/messages/${message._id}/unsend`);
-      setMessages((current) => current.map((item) => item._id === data._id ? data : item));
-      updateChatLastMessage(data);
+      const deletedMessage = await requestUnsend(message);
+      setMessages((current) => current.map((item) => item._id === deletedMessage._id ? deletedMessage : item));
+      updateChatLastMessage(deletedMessage);
       setError('');
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Could not unsend message');
+    }
+  }
+
+  async function requestUnsend(message) {
+    const postResult = await tryUnsendRequest(() => api.post(`/messages/${message._id}/unsend`));
+    if (postResult) return postResult;
+
+    const deleteResult = await tryUnsendRequest(() => api.delete(`/messages/${message._id}`));
+    if (deleteResult) return deleteResult;
+
+    if (socketRef.current?.connected) {
+      const socketResult = await new Promise((resolve, reject) => {
+        const timeout = window.setTimeout(() => reject(new Error('Unsend timed out')), 7000);
+        socketRef.current.emit('message:delete', { messageId: message._id }, (result) => {
+          window.clearTimeout(timeout);
+          if (result?.ok && result.message) resolve(result.message);
+          else reject(new Error(result?.message || 'Could not unsend message'));
+        });
+      });
+      return socketResult;
+    }
+
+    throw new Error('Could not unsend message');
+  }
+
+  async function tryUnsendRequest(request) {
+    try {
+      const { data } = await request();
+      return data;
+    } catch (err) {
+      const status = err.response?.status;
+      const message = err.response?.data?.message || '';
+      if (status === 404 && message.includes('Route not found')) return null;
+      throw err;
     }
   }
 
