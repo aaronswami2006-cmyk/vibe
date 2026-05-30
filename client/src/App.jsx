@@ -370,8 +370,6 @@ export default function App() {
   }
 
   async function unsendMessage(message) {
-    if (!window.confirm('Unsend this message?')) return;
-
     try {
       let deletedMessage = null;
 
