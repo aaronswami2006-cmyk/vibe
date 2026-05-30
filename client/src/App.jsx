@@ -371,7 +371,7 @@ export default function App() {
 
   async function unsendMessage(message) {
     try {
-      const { data } = await api.delete(`/messages/${message._id}`);
+      const { data } = await api.post(`/messages/${message._id}/unsend`);
       setMessages((current) => current.map((item) => item._id === data._id ? data : item));
       updateChatLastMessage(data);
       setError('');

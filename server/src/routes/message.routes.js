@@ -6,6 +6,48 @@ import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 
+async function unsendStoredMessage(messageId, userId, io) {
+  let message = await Message.findById(messageId);
+
+  if (!message) {
+    const error = new Error('Message not found');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const chat = await Chat.findOne({ _id: message.chat, members: userId });
+  if (!chat) {
+    const error = new Error('Chat not found');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (message.sender.toString() !== userId.toString()) {
+    const error = new Error('You can only unsend your own messages');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  message.text = '';
+  message.attachmentUrl = undefined;
+  message.attachmentName = undefined;
+  message.attachmentType = undefined;
+  message.isDeleted = true;
+  message.deletedAt = new Date();
+  await message.save();
+  message = await message.populate([
+    { path: 'sender', select: 'name email' },
+    {
+      path: 'replyTo',
+      select: 'text attachmentName attachmentType isDeleted sender',
+      populate: { path: 'sender', select: 'name email' }
+    }
+  ]);
+
+  io?.to(chat._id.toString()).emit('message:deleted', message);
+  return message;
+}
+
 router.get('/:chatId', requireAuth, async (req, res, next) => {
   try {
     const chat = await Chat.findOne({ _id: req.params.chatId, members: req.user._id });
@@ -80,42 +122,22 @@ router.post('/', requireAuth, async (req, res, next) => {
   }
 });
 
-router.delete('/:messageId', requireAuth, async (req, res, next) => {
+router.post('/:messageId/unsend', requireAuth, async (req, res, next) => {
   try {
-    let message = await Message.findById(req.params.messageId);
-
-    if (!message) {
-      return res.status(404).json({ message: 'Message not found' });
-    }
-
-    const chat = await Chat.findOne({ _id: message.chat, members: req.user._id });
-    if (!chat) {
-      return res.status(404).json({ message: 'Chat not found' });
-    }
-
-    if (message.sender.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'You can only unsend your own messages' });
-    }
-
-    message.text = '';
-    message.attachmentUrl = undefined;
-    message.attachmentName = undefined;
-    message.attachmentType = undefined;
-    message.isDeleted = true;
-    message.deletedAt = new Date();
-    await message.save();
-    message = await message.populate([
-      { path: 'sender', select: 'name email' },
-      {
-        path: 'replyTo',
-        select: 'text attachmentName attachmentType isDeleted sender',
-        populate: { path: 'sender', select: 'name email' }
-      }
-    ]);
-
-    req.app.get('io')?.to(chat._id.toString()).emit('message:deleted', message);
+    const message = await unsendStoredMessage(req.params.messageId, req.user._id, req.app.get('io'));
     res.json(message);
   } catch (error) {
+    if (error.statusCode) res.status(error.statusCode);
+    next(error);
+  }
+});
+
+router.delete('/:messageId', requireAuth, async (req, res, next) => {
+  try {
+    const message = await unsendStoredMessage(req.params.messageId, req.user._id, req.app.get('io'));
+    res.json(message);
+  } catch (error) {
+    if (error.statusCode) res.status(error.statusCode);
     next(error);
   }
 });
