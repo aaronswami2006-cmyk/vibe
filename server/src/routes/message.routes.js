@@ -113,6 +113,7 @@ router.delete('/:messageId', requireAuth, async (req, res, next) => {
       }
     ]);
 
+    req.app.get('io')?.to(chat._id.toString()).emit('message:deleted', message);
     res.json(message);
   } catch (error) {
     next(error);

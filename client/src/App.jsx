@@ -371,33 +371,12 @@ export default function App() {
 
   async function unsendMessage(message) {
     try {
-      let deletedMessage = null;
-
-      if (socketRef.current?.connected) {
-        const result = await new Promise((resolve) => {
-          socketRef.current.emit('message:delete', { messageId: message._id }, resolve);
-          window.setTimeout(() => resolve({ ok: false, message: 'Unsend timed out' }), 7000);
-        });
-        if (!result?.ok) throw new Error(result?.message || 'Could not unsend message');
-        deletedMessage = result.message;
-      } else {
-        const { data } = await api.delete(`/messages/${message._id}`);
-        deletedMessage = data;
-      }
-
-      if (deletedMessage) {
-        setMessages((current) => current.map((item) => item._id === deletedMessage._id ? deletedMessage : item));
-        updateChatLastMessage(deletedMessage);
-      }
+      const { data } = await api.delete(`/messages/${message._id}`);
+      setMessages((current) => current.map((item) => item._id === data._id ? data : item));
+      updateChatLastMessage(data);
+      setError('');
     } catch (err) {
-      try {
-        const { data } = await api.delete(`/messages/${message._id}`);
-        setMessages((current) => current.map((item) => item._id === data._id ? data : item));
-        updateChatLastMessage(data);
-        setError('');
-      } catch (fallbackErr) {
-        setError(fallbackErr.response?.data?.message || err.message || 'Could not unsend message');
-      }
+      setError(err.response?.data?.message || err.message || 'Could not unsend message');
     }
   }
 
